@@ -1,0 +1,12 @@
+# terminal color
+export CLICOLOR=1
+export LSCOLORS=ExFxCxDxBxegedabagacad
+
+#  my style promot
+export PS="\[\033[31m\][\W]\[\033[32m\] $ \[\033[0m\]"
+export PS1=$PS
+
+# git auto completion
+if [ -f ~/.git-completion.bash ]; then
+. ~/.git-completion.bash
+fi
