@@ -1,5 +1,5 @@
 "hoyoung vim setting
-"set nu
+set nu
 syntax on
 set ts=4
 set shiftwidth=4
