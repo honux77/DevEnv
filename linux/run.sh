@@ -4,5 +4,4 @@ if [ -d ~/.bash-git-prompt ];then
 	rm -rf ~/.bash-git-prompt
 fi
 cp -r bash-git-prompt ~/.bash-git-prompt
-cp git-completion.bash ~/.git-completion.bash
 cat profile >> ~/.profile
