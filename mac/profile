@@ -8,5 +8,8 @@ if [ -f ~/.git-completion.bash ]; then
 fi
 
 #useful command for me
+	find ./ -name "*.$var" -print0 | xargs -0 rm -rf
+}
 alias glog='git log --pretty=format:"%h - %an, %s (%ar)" -10'
 alias gtree='git log --pretty=format:"%h - %an" --graph' 
+alias clean='find ./ -name "*.orig" -print0 | xargs -0 rm -rf'
