@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cat profile >> ~/.bash_profile
+cat profile >> ~/.bashrc
 
 cd git
 ./run.sh auto

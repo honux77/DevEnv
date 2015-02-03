@@ -6,3 +6,7 @@ export LSCOLORS=ExFxCxDxBxegedabagacad
 if [ -f ~/.git-completion.bash ]; then
 . ~/.git-completion.bash
 fi
+
+#useful command for me
+alias glog='git log --pretty=format:"%h - %an, %s (%ar)" -10'
+alias gtree='git log --pretty=format:"%h - %an" --graph' 
