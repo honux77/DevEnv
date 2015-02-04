@@ -1,6 +1,9 @@
 #!/bin/bash
-
-cat profile >> ~/.bashrc
+if [ -f ~/.bashrc ]; then
+	echo "Rename .bashrc to .bashrc.old"
+	mv ~/.bashrc ~/.bashrc.old
+fi
+cp profile ~/.bashrc
 
 cd git
 ./run.sh auto
