@@ -2,18 +2,24 @@ require "formula"
 
 class BashGitPrompt < Formula
   homepage "https://github.com/magicmonty/bash-git-prompt"
-  url "https://github.com/magicmonty/bash-git-prompt/archive/2.0.tar.gz"
-  head "https://github.com/magicmonty/bash-git-prompt", :using => :git
-  sha1 "3c0bc71302b97260cf8d14a1f01be732039365b9"
+  url "https://github.com/magicmonty/bash-git-prompt/archive/2.3.5.tar.gz"
+  sha1 "16e1a9ab0ac711de79fd3b823138c16fadb3d5de"
+  head "https://github.com/magicmonty/bash-git-prompt.git"
 
   def install
-    share.install Dir["./gitprompt.{sh,fish}"], Dir["./git-prompt-{help,colors}.sh"], "gitstatus.sh", "prompt-colors.sh"
+    share.install "gitprompt.sh", "gitprompt.fish", "git-prompt-help.sh",
+                  "gitstatus.sh", "prompt-colors.sh"
+
+    (share/"themes").install Dir["themes/*.bgptheme"], "themes/Custom.bgptemplate"
     doc.install "README.md"
   end
 
   def caveats; <<-EOS.undent
-    You should add the following to your .bashrc or equivalent:
-    source #{opt_share}/gitprompt.sh
+    You should add the following to your .bashrc (or equivalent):
+      if [ -f "$(brew --prefix bash-git-prompt)/share/gitprompt.sh" ]; then
+        GIT_PROMPT_THEME=Default
+        source "$(brew --prefix bash-git-prompt)/share/gitprompt.sh"
+      fi
     EOS
   end
 end

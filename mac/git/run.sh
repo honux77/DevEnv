@@ -13,7 +13,7 @@ fi
 cp -r bash-git-prompt ~/.bash-git-prompt
 
 if [[ $1 == auto ]];then
-	cat profile >> ~/.bash_profile
+	cat profile >> ~/.bashrc
 else
 	cat profile >> ~/git-prompt
 fi

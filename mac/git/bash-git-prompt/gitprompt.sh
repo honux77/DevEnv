@@ -9,7 +9,7 @@ function async_run()
 
 function git_prompt_dir()
 {
-  # assume the gitstatus.py is in the same directory as this script
+  # assume the gitstatus.sh is in the same directory as this script
   # code thanks to http://stackoverflow.com/questions/59895
   if [ -z "$__GIT_PROMPT_DIR" ]; then
     local SOURCE="${BASH_SOURCE[0]}"
@@ -19,6 +19,112 @@ function git_prompt_dir()
       [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
     done
     __GIT_PROMPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  fi
+}
+
+function echoc() {
+    echo -e "${1}$2${ResetColor}" | sed 's/\\\]//g'  | sed 's/\\\[//g'
+}
+
+function get_theme()
+{
+  local CUSTOM_THEME_FILE="${HOME}/.git-prompt-colors.sh"
+  local DEFAULT_THEME_FILE="${__GIT_PROMPT_DIR}/themes/Default.bgptheme"
+
+  if [[ -z ${GIT_PROMPT_THEME} ]]; then
+    if [[ -r $CUSTOM_THEME_FILE ]]; then
+      GIT_PROMPT_THEME="Custom"
+      __GIT_PROMPT_THEME_FILE=$CUSTOM_THEME_FILE
+    else
+      GIT_PROMPT_THEME="Default"
+      __GIT_PROMPT_THEME_FILE=$DEFAULT_THEME_FILE
+    fi
+  else
+    if [[ "${GIT_PROMPT_THEME}" = "Custom" ]]; then
+      GIT_PROMPT_THEME="Custom"
+      __GIT_PROMPT_THEME_FILE=$CUSTOM_THEME_FILE
+      
+      if [[ ! (-r $__GIT_PROMPT_THEME_FILE) ]]; then
+        GIT_PROMPT_THEME="Default"
+        __GIT_PROMPT_THEME_FILE=$DEFAULT_THEME_FILE
+      fi
+    else
+      local theme=""
+      
+      # use default theme, if theme was not found
+      for themefile in `ls $__GIT_PROMPT_DIR/themes`; do
+        if [[ "${themefile}" = "${GIT_PROMPT_THEME}.bgptheme" ]]; then
+          theme=$GIT_PROMPT_THEME
+        fi
+      done
+
+      if [[ "${theme}" = "" ]]; then
+        GIT_PROMPT_THEME="Default"
+      fi 
+
+      __GIT_PROMPT_THEME_FILE="${__GIT_PROMPT_DIR}/themes/${GIT_PROMPT_THEME}.bgptheme"
+    fi
+  fi
+}
+
+function git_prompt_load_theme()
+{
+  get_theme
+  local DEFAULT_THEME_FILE="${__GIT_PROMPT_DIR}/themes/Default.bgptheme"
+  source "${DEFAULT_THEME_FILE}"
+  source "${__GIT_PROMPT_THEME_FILE}"
+}
+
+function git_prompt_list_themes() 
+{
+  local oldTheme
+  local oldThemeFile
+
+  git_prompt_dir
+  get_theme
+
+  for themefile in `ls $__GIT_PROMPT_DIR/themes`; do
+    local theme="$(basename $themefile .bgptheme)"
+
+    if [[ "${GIT_PROMPT_THEME}" = "${theme}" ]]; then
+      echoc ${Red} "*${theme}"
+    else
+      echo $theme 
+    fi
+  done
+
+  if [[ "${GIT_PROMPT_THEME}" = "Custom" ]]; then
+    echoc ${Magenta} "*Custom"
+  else
+    echoc ${Blue} "Custom"
+  fi
+}
+
+function git_prompt_make_custom_theme() {
+  if [[ -r "${HOME}/.git-prompt-colors.sh" ]]; then
+    echoc ${Red} "You alread have created a custom theme!"
+  else
+    git_prompt_dir
+
+    local base="Default"
+    if [[ -n $1 && -r "${__GIT_PROMPT_DIR}/themes/${1}.bgptheme" ]]; then
+      base=$1
+      echoc ${Green} "Using theme ${Magenta}\"${base}\"${Green} as base theme!"
+    else
+      echoc ${Green} "Using theme ${Magenta}\"Default\"${Green} as base theme!"
+    fi
+
+    if [[ "${base}" = "Custom" ]]; then
+      echoc ${Red} "You cannot use the custom theme as base"
+    else
+      echoc ${Green} "Creating new cutom theme in \"${HOME}/.git-prompt-colors.sh\""
+      echoc ${DimYellow} "Please add ${Magenta}\"GIT_PROMPT_THEME=Custom\"${DimYellow} to your .bashrc to use this theme"
+      if [[ "${base}" == "Default" ]]; then
+        cp "${__GIT_PROMPT_DIR}/themes/Custom.bgptemplate" "${HOME}/.git-prompt-colors.sh"
+      else
+        cp "${__GIT_PROMPT_DIR}/themes/${base}.bgptheme" "${HOME}/.git-prompt-colors.sh"
+      fi
+    fi
   fi
 }
 
@@ -74,7 +180,7 @@ function gp_maybe_set_envar_to_path(){
 
 git_prompt_reset() {
   local var
-  for var in GIT_PROMPT_DIR __GIT_PROMPT_COLORS_FILE __PROMPT_COLORS_FILE __GIT_STATUS_CMD ; do
+  for var in GIT_PROMPT_DIR __GIT_PROMPT_COLORS_FILE __PROMPT_COLORS_FILE __GIT_STATUS_CMD GIT_PROMPT_THEME_NAME; do
     unset $var
   done
 }
@@ -99,32 +205,20 @@ function git_prompt_config()
   # source the user's ~/.git-prompt-colors.sh file, or the one that should be
   # sitting in the same directory as this script
 
-  if gp_set_file_var __GIT_PROMPT_COLORS_FILE git-prompt-colors.sh ; then
-    source "$__GIT_PROMPT_COLORS_FILE"
+  git_prompt_load_theme
+
+  if [ $GIT_PROMPT_LAST_COMMAND_STATE = 0 ]; then
+    LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_OK";
   else
-    echo 1>&2 "Cannot find git-prompt-colors.sh!"
+    LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_FAIL";
   fi
 
-  if [ "$GIT_PROMPT_SHOW_LAST_COMMAND_INDICATOR" = 1 ]; then
-    if [ $GIT_PROMPT_LAST_COMMAND_STATE = 0 ]; then
-      LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_OK";
-    else
-      LAST_COMMAND_INDICATOR="$GIT_PROMPT_COMMAND_FAIL";
-    fi
-
-    # replace _LAST_COMMAND_STATE_ token with the actual state
-    LAST_COMMAND_INDICATOR="${LAST_COMMAND_INDICATOR/_LAST_COMMAND_STATE_/${GIT_PROMPT_LAST_COMMAND_STATE}}"
-  fi
+  # replace _LAST_COMMAND_STATE_ token with the actual state
+  LAST_COMMAND_INDICATOR="${LAST_COMMAND_INDICATOR//_LAST_COMMAND_STATE_/${GIT_PROMPT_LAST_COMMAND_STATE}}"
 
   # Do this only once to define PROMPT_START and PROMPT_END
 
   if [[ -z "$PROMPT_START" || -z "$PROMPT_END" ]]; then
-
-    # Various variables you might want for your PS1 prompt instead
-    local Time12a="\$(date +%H:%M)"
-    # local Time12a="(\$(date +%H:%M:%S))"
-    # local Time12a="(\@))"
-    local PathShort="\w"
 
     if [[ -z "$GIT_PROMPT_START" ]] ; then
       if $_isroot; then
@@ -157,21 +251,25 @@ function git_prompt_config()
   if [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
     EMPTY_PROMPT="$OLD_GITPROMPT"
   else
-    local ps="$LAST_COMMAND_INDICATOR"
+    local ps=""
     if [[ -n "$VIRTUAL_ENV" ]]; then
-      ps="$ps($Blue$(basename \"$VIRTUAL_ENV\")$ResetColor) "
-    elif [[ -n "$CONDA_DEFAULT_ENV" ]]; then
-      ps="$ps($Blue$(basename \"$CONDA_DEFAULT_ENV\")$ResetColor) "
+      VENV=$(basename "${VIRTUAL_ENV}")
+      ps="${ps}${GIT_PROMPT_VIRTUALENV//_VIRTUALENV_/${VENV}}"
     fi
-    EMPTY_PROMPT="$ps$PROMPT_START$($prompt_callback)$PROMPT_END"
+    if [[ -n "$CONDA_DEFAULT_ENV" ]]; then
+      VENV=$(basename "${CONDA_DEFAULT_ENV}")
+      ps="${ps}${GIT_PROMPT_VIRTUALENV//_VIRTUALENV_/${VENV}}"
+    fi
+    ps="$ps$PROMPT_START$($prompt_callback)$PROMPT_END"
+    EMPTY_PROMPT="${ps//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}}"
   fi
 
   # fetch remote revisions every other $GIT_PROMPT_FETCH_TIMEOUT (default 5) minutes
   GIT_PROMPT_FETCH_TIMEOUT=${1-5}
   if [[ -z "$__GIT_STATUS_CMD" ]] ; then          # if GIT_STATUS_CMD not defined..
     git_prompt_dir
-    if ! gp_maybe_set_envar_to_path __GIT_STATUS_CMD "$__GIT_PROMPT_DIR/gitstatus.sh" "$__GIT_PROMPT_DIR/gitstatus.py" ; then
-      echo 1>&2 "Cannot find gitstatus.sh or gitstatus.py!"
+    if ! gp_maybe_set_envar_to_path __GIT_STATUS_CMD "$__GIT_PROMPT_DIR/gitstatus.sh" ; then
+      echo 1>&2 "Cannot find gitstatus.sh!"
     fi
     # __GIT_STATUS_CMD defined
   fi
@@ -181,13 +279,37 @@ function setLastCommandState() {
   GIT_PROMPT_LAST_COMMAND_STATE=$?
 }
 
+function we_are_on_repo() {
+  if [[ -e "$(git rev-parse --git-dir 2> /dev/null)" ]]; then
+    echo 1
+  fi
+  echo 0
+}
+
+function update_old_git_prompt() {
+  local in_repo=$(we_are_on_repo)
+  if [[ $GIT_PROMPT_OLD_DIR_WAS_GIT = 0 ]]; then
+    OLD_GITPROMPT=$PS1
+  fi
+  
+  GIT_PROMPT_OLD_DIR_WAS_GIT=$in_repo
+}
+
 function setGitPrompt() {
+  update_old_git_prompt
+  
+  local repo=`git rev-parse --show-toplevel 2> /dev/null`
+  if [[ ! -e "$repo" ]] && [[ "$GIT_PROMPT_ONLY_IN_REPO" = 1 ]]; then
+    # we do not permit bash-git-prompt outside git repos, so nothing to do
+    PS1="$OLD_GITPROMPT"
+    return
+  fi
+  
   local EMPTY_PROMPT
   local __GIT_STATUS_CMD
 
   git_prompt_config
 
-  local repo=`git rev-parse --show-toplevel 2> /dev/null`
   if [[ ! -e "$repo" ]]; then
     PS1="$EMPTY_PROMPT"
     return
@@ -198,11 +320,18 @@ function setGitPrompt() {
     FETCH_REMOTE_STATUS=0
   fi
 
+  unset GIT_PROMPT_IGNORE
+
   if [[ -e "$repo/.bash-git-rc" ]]; then
     source "$repo/.bash-git-rc"
   fi
 
-  if [ "$FETCH_REMOTE_STATUS" = 1 ]; then
+  if [[ "$GIT_PROMPT_IGNORE" = 1 ]]; then
+    PS1="$EMPTY_PROMPT"
+    return
+  fi
+
+  if [[ "$FETCH_REMOTE_STATUS" = 1 ]]; then
     checkUpstream
   fi
 
@@ -226,6 +355,19 @@ function checkUpstream() {
   fi
 }
 
+function replaceSymbols()
+{
+  if [[ -z ${GIT_PROMPT_SYMBOLS_NO_REMOTE_TRACKING} ]]; then
+    GIT_PROMPT_SYMBOLS_NO_REMOTE_TRACKING=L
+  fi
+
+	local VALUE=${1//_AHEAD_/${GIT_PROMPT_SYMBOLS_AHEAD}}
+	local VALUE1=${VALUE//_BEHIND_/${GIT_PROMPT_SYMBOLS_BEHIND}}
+  local VALUE2=${VALUE1//_NO_REMOTE_TRACKING_/${GIT_PROMPT_SYMBOLS_NO_REMOTE_TRACKING}}
+	
+	echo ${VALUE2//_PREHASH_/${GIT_PROMPT_SYMBOLS_PREHASH}}
+}
+
 function updatePrompt() {
   local LAST_COMMAND_INDICATOR
   local PROMPT_LEADING_SPACE
@@ -236,11 +378,12 @@ function updatePrompt() {
 
   git_prompt_config
 
+  export __GIT_PROMPT_IGNORE_STASH=${GIT_PROMPT_IGNORE_STASH}
   local -a GitStatus
   GitStatus=($("$__GIT_STATUS_CMD" 2>/dev/null))
 
-  local GIT_BRANCH=${GitStatus[0]}
-  local GIT_REMOTE=${GitStatus[1]}
+  local GIT_BRANCH=$(replaceSymbols ${GitStatus[0]})
+  local GIT_REMOTE="$(replaceSymbols ${GitStatus[1]})"
   if [[ "." == "$GIT_REMOTE" ]]; then
     unset GIT_REMOTE
   fi
@@ -251,6 +394,7 @@ function updatePrompt() {
   local GIT_STASHED=${GitStatus[6]}
   local GIT_CLEAN=${GitStatus[7]}
 
+  local NEW_PROMPT="$EMPTY_PROMPT"
   if [[ -n "$GitStatus" ]]; then
     local STATUS="${PROMPT_LEADING_SPACE}${GIT_PROMPT_PREFIX}${GIT_PROMPT_BRANCH}${GIT_BRANCH}${ResetColor}"
 
@@ -292,18 +436,23 @@ function updatePrompt() {
     __chk_gitvar_status 'CLEAN'      '-eq 1'   -
     __add_status        "$ResetColor$GIT_PROMPT_SUFFIX"
 
-    PS1="$LAST_COMMAND_INDICATOR$PROMPT_START$($prompt_callback)$STATUS$PROMPT_END"
+    NEW_PROMPT=""
     if [[ -n "$VIRTUAL_ENV" ]]; then
-      PS1="($Blue$(basename \"$VIRTUAL_ENV\")$ResetColor) $PS1"
+      VENV=$(basename "${VIRTUAL_ENV}")
+      NEW_PROMPT="$NEW_PROMPT${GIT_PROMPT_VIRTUALENV//_VIRTUALENV_/${VENV}}"
     fi
 
     if [[ -n "$CONDA_DEFAULT_ENV" ]]; then
-      PS1="($Blue$(basename \"$CONDA_DEFAULT_ENV\")$ResetColor) $PS1"
+      VENV=$(basename "${CONDA_DEFAULT_ENV}")
+      NEW_PROMPT="$NEW_PROMPT${GIT_PROMPT_VIRTUALENV//_VIRTUALENV_/${VENV}}"
     fi
 
+    NEW_PROMPT="$NEW_PROMPT$PROMPT_START$($prompt_callback)$STATUS$PROMPT_END"
   else
-    PS1="$EMPTY_PROMPT"
+    NEW_PROMPT="$EMPTY_PROMPT"
   fi
+
+  PS1="${NEW_PROMPT//_LAST_COMMAND_INDICATOR_/${LAST_COMMAND_INDICATOR}}"
 }
 
 function prompt_callback_default {
@@ -316,9 +465,13 @@ function gp_install_prompt {
   else
       prompt_callback="prompt_callback_default"
   fi
-
+  
   if [ -z "$OLD_GITPROMPT" ]; then
     OLD_GITPROMPT=$PS1
+  fi
+  
+  if [ -z "$GIT_PROMPT_OLD_DIR_WAS_GIT" ]; then
+    GIT_PROMPT_OLD_DIR_WAS_GIT=$(we_are_on_repo)
   fi
 
   if [ -z "$PROMPT_COMMAND" ]; then
@@ -339,18 +492,16 @@ function gp_install_prompt {
     esac
   fi
 
-  if [ "$GIT_PROMPT_SHOW_LAST_COMMAND_INDICATOR" = 1 ]; then
-    local setLastCommandStateEntry="setLastCommandState"
-    case ";$PROMPT_COMMAND;" in
-      *";$setLastCommandStateEntry;"*)
-        # echo "PROMPT_COMMAND already contains: $setLastCommandStateEntry"
-        :;;
-      *)
-        PROMPT_COMMAND="$setLastCommandStateEntry;$PROMPT_COMMAND"
-        # echo "PROMPT_COMMAND does not contain: $setLastCommandStateEntry"
-        ;;
-    esac
-  fi
+  local setLastCommandStateEntry="setLastCommandState"
+  case ";$PROMPT_COMMAND;" in
+    *";$setLastCommandStateEntry;"*)
+      # echo "PROMPT_COMMAND already contains: $setLastCommandStateEntry"
+      :;;
+    *)
+      PROMPT_COMMAND="$setLastCommandStateEntry;$PROMPT_COMMAND"
+      # echo "PROMPT_COMMAND does not contain: $setLastCommandStateEntry"
+      ;;
+  esac
 
   git_prompt_dir
   source "$__GIT_PROMPT_DIR/git-prompt-help.sh"
