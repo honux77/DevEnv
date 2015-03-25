@@ -1,3 +1,6 @@
 [submodule "unix/git/bash-git-prompt"]
 	path = unix/git/bash-git-prompt
 	url = https://github.com/magicmonty/bash-git-prompt.git
+[submodule "unix/fonts"]
+	path = unix/fonts
+	url = https://github.com/powerline/fonts

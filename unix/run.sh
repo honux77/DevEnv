@@ -3,20 +3,24 @@ OS=$(uname)
 
 
 mac() {
-if [ -f ~/.bashrc ]; then
-	mv ~/.bashrc ~/.bashrc.old
+cd fonts
+./install.sh
+cd ..
+if [ -f ~/.zshrc ]; then
+	mv ~/.zshrc ~/.zshrc.old
 fi
-cp profile ~/.bashrc
+cp zshrc ~/.zshrc
 }
 
 linux() {
-if [ -f ~/.bashrc ]; then
-	cp ~/.bashrc ~/.bashrc.old
+if [ -f ~/.zshrc ]; then
+	cp ~/.zshrc ~/.zshrc.old
 fi
-cat profile >> ~/.bashrc
+cp zshrc ~/.zshrc
 }
 
 # main routine
+
 if [[ $OS == "Linux" ]]; then
 echo "Linux"
 	linux
@@ -25,11 +29,6 @@ echo "MacOS"
 	mac
 fi
 
-cd git
-echo "git config"
-./run.sh auto
-
-cd ..
 cd vim
 echo "vim config"
 ./run.sh
